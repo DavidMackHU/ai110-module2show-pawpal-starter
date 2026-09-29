@@ -1,40 +1,42 @@
 # AI Interactions Log
 
-> **Stretch features only.** Only fill in the sections that apply to stretch features you attempted. If you did not attempt a stretch feature, leave its section blank or delete it. This file is not required for the core project.
+## Agent Workflow
 
----
+**Tool:** Codex in the project workspace, with terminal tools and the connected browser.
 
-## Agent Workflow (SF7)
+**Actual request:** "complete the assignment" after providing the PawPal+ assignment screenshot and starter README context.
 
-> Document your experience using an AI agent (e.g., Cursor Agent, Claude, Copilot) to make multi-step changes autonomously.
+**User's learning input:** "I learned how to us mermaid in real applications, the most difficult part was creating the components for the system, and i used AI as a tool to assist me in learning."
 
-**What task did you give the agent?**
+**Work completed by the agent:**
 
-<!-- Describe the goal you asked the agent to accomplish -->
+- Read the assignment and rubric in the browser and inspected the starter repository.
+- Created `pawpal_system.py` with Owner, Pet, Task, and Scheduler.
+- Created `main.py` with reproducible sorting, filters, recurrence, conflict warnings, priority sorting, and a 45-minute plan.
+- Replaced the starter `app.py` with working forms, task editing/completion, filters, session state, and daily planning.
+- Added the draft/final diagrams under `diagrams/`, `tests/test_pawpal.py`, `tests/test_app.py`, and `pytest.ini`.
+- Updated `requirements.txt`, `.streamlit/config.toml`, `.gitignore`, README, and reflection.
 
-**What did the agent do?**
+**Additional algorithm:** `Scheduler.build_plan()` chooses a subset by priority, preferred pet, and available care minutes, prevents overlaps within that subset, and reports why tasks were skipped. It leaves stored tasks unchanged.
 
-<!-- List the steps the agent took (files edited, commands run, etc.) -->
+**Verification and corrections:**
 
-**What did you have to verify or fix manually?**
+The agent ran the CLI and the pytest suite. The first run passed 28 tests but one Streamlit workflow timed out during cold startup. The test startup timeout was increased from 15 to 60 seconds. Generated deprecated `use_container_width` arguments were changed to `width="stretch"`, and the Streamlit minimum version was raised. The next full run passed all 29 tests in 1.64 seconds. The final README contains captured CLI output.
 
-<!-- Describe anything the agent got wrong or that required human review -->
+**Manual corrections:** The student supplied the personal reflection input quoted above. No manual code corrections or personally rejected AI suggestion have been reported. Technical fixes described here were performed by the agent.
 
----
+## Design decisions
 
-## Prompt Comparison (SF11)
+- The four-class design keeps UI code out of the backend.
+- Preferred pet IDs replaced the draft's broader species preference.
+- Interval overlap checks handle different start times and midnight; adjacent tasks are allowed.
+- Recurrences are created only once per completed occurrence.
+- A readable greedy planner was used; no global-optimality claim is made.
 
-> Compare two different prompts (or two different models) on the same task.
+## Prompt Comparison
 
-| | Option A | Option B |
-|-|----------|----------|
-| **Model / tool used** | | |
-| **Prompt** | | |
-| **Response summary** | | |
-| **What was useful** | | |
-| **Problems noticed** | | |
-| **Decision** | | |
+No second model or separate prompting comparison was performed. This optional extension is not claimed.
 
-**Which approach did you use in your final implementation and why?**
+## Git workflow
 
-<!-- Your conclusion -->
+After the initial implementation was complete, the student requested six meaningful steps and control over each GitHub push. The completed version was preserved on the local `backup/pawpal-completed-before-six-steps` branch. The unpublished commits were then reorganized into design and skeletons, model behavior, scheduling and CLI, Streamlit UI, tests, and final documentation. The agent verified and committed each stage, then paused while the student pushed it. This history reflects a staged reconstruction of the completed implementation.
