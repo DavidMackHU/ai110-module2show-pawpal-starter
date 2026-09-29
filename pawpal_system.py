@@ -135,24 +135,68 @@ class Owner:
 
 
 class Scheduler:
-    """Organize and select care tasks across the household."""
+    """Sort, filter, flag overlaps, and choose feasible daily tasks."""
 
     def __init__(self, owner: Owner):
-        """Keep a reference to the household being scheduled."""
+        """Read current pets and tasks from the supplied owner."""
         self.owner = owner
 
-    def sort_by_time(self) -> list:
-        """Return tasks in chronological order."""
-        raise NotImplementedError("Scheduling will be added in stage 3.")
+    def filter_tasks(self, pet_id: str | None = None, completed: bool | None = None,
+                     day: date | None = None) -> list[tuple[Pet, Task]]:
+        """Filter by pet identity, completion status, and due date."""
+        return [(pet, task) for pet, task in self.owner.get_all_tasks()
+                if (pet_id is None or pet.id == pet_id)
+                and (completed is None or task.completed == completed)
+                and (day is None or task.due_date == day)]
 
-    def filter_tasks(self) -> list:
-        """Select tasks matching requested criteria."""
-        raise NotImplementedError("Scheduling will be added in stage 3.")
+    def sort_by_time(self, **filters) -> list[tuple[Pet, Task]]:
+        """Return matching tasks in chronological order without mutating storage."""
+        return sorted(self.filter_tasks(**filters), key=lambda item: item[1].start)
 
-    def detect_conflicts(self) -> list:
-        """Identify overlapping care tasks."""
-        raise NotImplementedError("Scheduling will be added in stage 3.")
+    def sort_by_priority(self, **filters) -> list[tuple[Pet, Task]]:
+        """Sort by priority first, then chronological time."""
+        return sorted(self.filter_tasks(**filters),
+                      key=lambda item: (PRIORITIES[item[1].priority], item[1].start))
 
-    def build_plan(self) -> tuple:
-        """Choose daily tasks within the owner's constraints."""
-        raise NotImplementedError("Scheduling will be added in stage 3.")
+    @staticmethod
+    def overlaps(first: Task, second: Task) -> bool:
+        """Check half-open intervals so back-to-back tasks do not conflict."""
+        return first.start < second.end and second.start < first.end
+
+    def detect_conflicts(self, day: date | None = None) -> list[str]:
+        """Warn about overlapping pending tasks across all pets, including midnight."""
+        tasks = self.sort_by_time(completed=False)
+        warnings = []
+        for index, (pet, task) in enumerate(tasks):
+            for other_pet, other in tasks[index + 1:]:
+                if other.start >= task.end:
+                    break
+                if day is not None:
+                    day_start = datetime.combine(day, datetime.min.time())
+                    day_end = day_start + timedelta(days=1)
+                    if max(task.start, other.start, day_start) >= min(task.end, other.end, day_end):
+                        continue
+                warnings.append(
+                    f"Conflict: {pet.name} / {task.description} ({task.start:%Y-%m-%d %H:%M}) "
+                    f"overlaps {other_pet.name} / {other.description} ({other.start:%Y-%m-%d %H:%M})."
+                )
+        return warnings
+
+    def build_plan(self, day: date, available_minutes: int):
+        """Choose fixed-time tasks by priority, pet preference, then time within a budget."""
+        if type(available_minutes) is not int or available_minutes < 0:
+            raise ValueError("Available time must be a nonnegative whole number.")
+        candidates = sorted(self.filter_tasks(day=day, completed=False), key=lambda item: (
+            PRIORITIES[item[1].priority], item[0].id != self.owner.preferred_pet_id, item[1].start))
+        chosen, skipped = [], []
+        remaining = available_minutes
+        for pet, task in candidates:
+            conflict = next((other for _, other in chosen if self.overlaps(task, other)), None)
+            if conflict:
+                skipped.append((pet, task, f"Overlaps selected task: {conflict.description}."))
+            elif task.duration_minutes > remaining:
+                skipped.append((pet, task, f"Needs {task.duration_minutes} min; {remaining} min remain."))
+            else:
+                chosen.append((pet, task))
+                remaining -= task.duration_minutes
+        return sorted(chosen, key=lambda item: item[1].start), skipped
